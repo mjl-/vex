@@ -1,0 +1,83 @@
+commands for testing
+
+docker image pull alpine:latest
+docker image pull alpine:3.17.1
+docker image pull alpine:3.17.2
+
+docker image tag alpine:3.17.1 localhost:8201/alpine:3.17.1
+docker image tag alpine:3.17.2 localhost:8201/alpine:3.17.2
+docker image tag alpine:latest localhost:8201/alpine:latest
+
+docker image push localhost:8201/alpine:3.17.1
+docker image push localhost:8201/alpine:3.17.2
+docker image push localhost:8201/alpine:latest
+
+# does not work as expected, tries to remove referenced manifest only
+skopeo delete --tls-verify=false docker://localhost:8201/alpine:3.17.1
+
+curl --insecure -X DELETE -u vex:testtest https://localhost:8201/v2/alpine/manifests/3.17.1
+curl --insecure -X DELETE -u vex:testtest https://localhost:8201/v2/alpine/manifests/sha256:93d5a28ff72d288d69b5997b8ba47396d2cbb62a72b5d87cd3351094b5d578a0
+
+curl --insecure -X DELETE -u vex:testtest https://localhost:8201/v2/alpine/manifests/3.17.2
+curl --insecure -X DELETE -u vex:testtest https://localhost:8201/v2/alpine/manifests/latest
+
+
+curl -v --insecure https://localhost:8200/v2/alpine/manifests/3.17.1
+curl -v --insecure https://localhost:8200/v2/alpine/manifests/sha256:93d5a28ff72d288d69b5997b8ba47396d2cbb62a72b5d87cd3351094b5d578a0
+
+# 3.17.1 config
+curl -v --insecure https://localhost:8200/v2/alpine/blobs/sha256:042a816809aac8d0f7d7cacac7965782ee2ecac3f21bcf9f24b1de1a7387b769 | python3 -m json.tool
+# 3.17.1 layer
+curl -v --insecure https://localhost:8200/v2/alpine/blobs/sha256:8921db27df2831fa6eaa85321205a2470c669b855f3ec95d5a3c2b46de0442c9 | tar -ztf - | less
+
+# will succeed, even if still referenced. only actually removes it from file system if no longer in use.
+curl --insecure -X DELETE -u vex:testtest https://localhost:8201/v2/alpine/blobs/sha256:042a816809aac8d0f7d7cacac7965782ee2ecac3f21bcf9f24b1de1a7387b769
+curl --insecure -X DELETE -u vex:testtest https://localhost:8201/v2/alpine/blobs/sha256:8921db27df2831fa6eaa85321205a2470c669b855f3ec95d5a3c2b46de0442c9
+
+# bad credentials
+curl --insecure -X DELETE -u vex:bad https://localhost:8201/v2/alpine/blobs/sha256:042a816809aac8d0f7d7cacac7965782ee2ecac3f21bcf9f24b1de1a7387b769
+curl --insecure -X DELETE -u vex:bad https://localhost:8201/v2/alpine/manifests/3.17.1
+curl --insecure -X DELETE -u vex:bad https://localhost:8201/v2/alpine/manifests/sha256:93d5a28ff72d288d69b5997b8ba47396d2cbb62a72b5d87cd3351094b5d578a0
+curl --insecure -X PUT -u vex:bad https://localhost:8201/v2/alpine/manifests/3.17.1
+curl --insecure -X POST -u vex:bad https://localhost:8201/v2/alpine/blobs/upload/
+curl --insecure -X PATCH -u vex:bad https://localhost:8201/v2/alpine/blobs/upload/1
+curl --insecure -X PUT -u vex:bad https://localhost:8201/v2/alpine/blobs/upload/1
+curl --insecure -X DELETE -u vex:bad https://localhost:8201/v2/alpine/blobs/upload/1
+
+# read-only
+curl --insecure -X DELETE https://localhost:8200/v2/alpine/manifests/3.17.1
+curl --insecure -X DELETE https://localhost:8200/v2/alpine/manifests/sha256:93d5a28ff72d288d69b5997b8ba47396d2cbb62a72b5d87cd3351094b5d578a0
+curl --insecure -X PUT https://localhost:8200/v2/alpine/manifests/3.17.1
+curl --insecure -X POST https://localhost:8200/v2/alpine/blobs/upload/
+curl --insecure -X PATCH https://localhost:8200/v2/alpine/blobs/upload/1
+curl --insecure -X PUT https://localhost:8200/v2/alpine/blobs/upload/1
+curl --insecure -X DELETE https://localhost:8200/v2/alpine/blobs/upload/1
+curl --insecure -X DELETE https://localhost:8200/v2/alpine/blobs/sha256:042a816809aac8d0f7d7cacac7965782ee2ecac3f21bcf9f24b1de1a7387b769
+
+# not found
+curl --insecure https://localhost:8200/v2/badrepo/manifests/3.17.1
+curl --insecure https://localhost:8200/v2/badrepo/manifests/sha256:93d5a28ff72d288d69b5997b8ba47396d2cbb62a72b5d87cd3351094b5d578a0
+curl --insecure https://localhost:8200/v2/badrepo/blobs/sha256:042a816809aac8d0f7d7cacac7965782ee2ecac3f21bcf9f24b1de1a7387b769
+curl --insecure https://localhost:8200/v2/alpine/manifests/badtag
+curl --insecure https://localhost:8200/v2/alpine/manifests/sha256:0000000000000000000000000000000000000000000000000000000000000000
+curl --insecure https://localhost:8200/v2/alpine/blobs/sha256:0000000000000000000000000000000000000000000000000000000000000000
+
+# copy manifest list and all its images
+skopeo copy --all --dest-tls-verify=false docker://docker.io/library/alpine:3.17.1 docker://localhost:8201/alpine:3.17.1
+
+# todo: overwrite tag to manifestlist with regular manifest, ensure old manifests are removed
+
+
+# linux/amd64 manifest, still referenced
+curl --insecure -X DELETE -u vex:testtest https://localhost:8201/v2/alpine/manifests/sha256:93d5a28ff72d288d69b5997b8ba47396d2cbb62a72b5d87cd3351094b5d578a0
+# manifest list, still referenced by tag
+curl --insecure -X DELETE -u vex:testtest https://localhost:8201/v2/alpine/manifests/sha256:f271e74b17ced29b915d351685fd4644785c6d1559dd1f2d4189a5e851ef753a
+# remove tag and manifest and image manifests and blobs
+curl --insecure -X DELETE -u vex:testtest https://localhost:8201/v2/alpine/manifests/3.17.1
+
+skopeo copy --all --dest-tls-verify=false docker://docker.io/library/alpine:3.17.2 docker://localhost:8201/alpine:latest
+skopeo copy --all --dest-tls-verify=false docker://docker.io/library/alpine:3.17.1 docker://localhost:8201/alpine:3.17.1
+skopeo copy --dest-tls-verify=false docker://docker.io/library/alpine:3.17.1 docker://localhost:8201/alpine:latest
+skopeo copy --all --src-tls-verify=false --dest-tls-verify=false docker://localhost:8201/alpine:3.17.1 docker://localhost:8201/alpine:latest
+docker image push localhost:8201/alpine:3.17.1
+curl --insecure -X DELETE -u vex:testtest https://localhost:8201/v2/alpine/manifests/3.17.1

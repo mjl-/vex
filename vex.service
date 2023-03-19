@@ -1,0 +1,51 @@
+[Unit]
+Description=vex docker container registry
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+UMask=007
+LimitNOFILE=65535
+User=vex
+Group=vex
+Type=simple
+WorkingDirectory=/home/vex
+ExecStart=/home/vex/vex serve -publicaddr 127.0.0.1:8200 -authaddr 127.0.0.1:8201 -adminaddr 127.0.0.1:8202 -authtlskey tls.ecdsakey.pkcs8.pem -authtlscert tls.crt.pem
+RestartSec=5s
+Restart=always
+
+# Isolate process, reducing attack surface.
+PrivateDevices=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/home/vex/data
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+AmbientCapabilities=
+CapabilityBoundingSet=
+NoNewPrivileges=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RemoveIPC=yes
+ProtectHostname=yes
+ProtectClock=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+MemoryDenyWriteExecute=yes
+LockPersonality=yes
+DevicePolicy=closed
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+
+# Cannot have RestrictSUIDSGID with setgid directories.
+#RestrictSUIDSGID=yes
+
+PrivateUsers=yes
+
+# To check security-related settings:
+# sudo systemd-analyze security vex.service
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,112 @@
+<!doctype html>
+<html>
+	<head>
+		<title>Manifest {{ .DBManifest.Digest }} on repository {{ .Repo.Name }} - Registry</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="generator" content="https://github.com/mjl-/vex" />
+		<style>
+body, html { padding: 1em; font-size: 16px; }
+* { font-size: inherit; font-family: ubuntu, lato, sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
+h1, h2 { margin-bottom: 1ex; }
+h1 { font-size: 1.2rem; }
+h2 { font-size: 1.1rem; }
+.literal { background-color: #fdfdfd; padding: .5em 1em; border: 1px solid #eee; border-radius: 4px; white-space: pre-wrap; font-family: monospace; font-size: 15px; tab-size: 4; }
+.monospace { font-family: monospace; }
+table > tbody > tr:nth-child(odd) { background-color: #f8f8f8; }
+td, th { padding: .2em .5em; }
+p { margin-bottom: 1em; max-width: 50em; }
+[title] { text-decoration: underline; text-decoration-style: dotted; }
+		</style>
+	</head>
+	<body>
+		<h1>Manifest in repository <a href="../../">{{ .Repo.Name }}</a> in <a href="../../../../">registry</a></h1>
+		<h2>Tags referencing manifest</h2>
+		<table>
+			<thead>
+				<tr>
+					<th>Tag</th>
+					<th>Last updated</th>
+				</tr>
+			</thead>
+			<tbody>
+				{{ range .Tags -}}
+				<tr>
+					<td>
+						{{ if ne .Digest $.DBManifest.Digest -}}
+						<a href="../{{ .Digest }}/?tag={{ .Tag }}">{{ .Tag }}</a>
+						{{- else -}}
+						{{ .Tag }}
+						{{- end }}
+					</td>
+					<td title="{{ .Modified.UTC.Format "2006-01-02 15:04:05" }} UTC">{{ .Modified | age }}</td>
+				</tr>
+				{{- else -}}
+				<tr><td colspan="2">None</td></tr>
+				{{- end }}
+			</tbody>
+		</table>
+		<br/>
+
+		<h2>Pull address</h2>
+		<div><pre class="literal" style="display: inline-block">{{ .Address }}</pre></div>
+		<br/>
+
+		{{ if eq .DBManifest.Kind .ManifestKindV22 -}}
+		<h2>Layers in manifest</h2>
+		<table>
+			<thead>
+				<tr>
+					<th>Digest</th>
+					<th>Size</th>
+				</tr>
+			</thead>
+			<tbody>
+				{{ range .ParsedManifest.Layers -}}
+				<tr>
+					<td class="monospace">{{ .Digest }}</td>
+					<td style="text-align: right" title="{{ .Size }} bytes">{{ .Size | formatSize }}</td>
+				</tr>
+				{{- else  -}}
+				<tr><td colspan="2">None</td></tr>
+				{{- end }}
+			</tbody>
+			<tfoot>
+				<tr>
+					<td><b>Total size</b></td>
+					<td style="text-align: right" title="{{ .DBManifest.ImageSize }} bytes"><b>{{ .DBManifest.ImageSize | formatSize }}</b></td>
+				</tr>
+			</tfoot>
+		</table>
+		{{- else if eq .DBManifest.Kind .ManifestKindListV22 -}}
+		<h2>Manifests in list</h2>
+		<table>
+			<thead>
+				<tr>
+					<th colspan="2">OS/Arch</th>
+					<th>Size</th>
+					<th>Pull address</th>
+				</tr>
+			</thead>
+			<tbody>
+				{{ range .ParsedManifest.Manifests -}}
+				{{- $dbmanifest := index $.DBManifests .Digest -}}
+				<tr>
+					<td>{{ .Platform.OS }}/{{ .Platform.Architecture }}</td>
+					<td>
+						{{- if .Platform.OSVersion }}os version: {{ .Platform.OSVersion }} {{ end }}
+						{{- if .Platform.OSFeatures }}os features: {{ range  .Platform.OSFeatures }}{{ . }} {{ end}} {{ end }}
+						{{- if .Platform.Variant }}cpu variant: {{ .Platform.Variant }} {{ end }}
+						{{- if .Platform.Features }}cpu features: {{ range .Platform.Features }}{{ . }} {{ end}} {{ end }}
+					</td>
+					<td style="text-align: right" title="{{ $dbmanifest.ImageSize }} bytes">{{ $dbmanifest.ImageSize | formatSize }}</td>
+					<td>{{ $.BaseAddress }}/{{ $.Repo.Name }}{{ if $.Tag }}:{{ $.Tag }}{{ end }}@<a href="../../manifest/{{ .Digest }}/{{ if $.Tag }}?tag={{ $.Tag }}{{ end }}" class="monospace">{{ .Digest }}</a></td>
+				</tr>
+				{{- else -}}
+				<tr><td colspan="4">None</td></tr>
+				{{- end }}
+			</tbody>
+		</table>
+		{{- end }}
+	</body>
+</html>
