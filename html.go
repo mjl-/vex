@@ -119,7 +119,7 @@ func serveHTML(xw http.ResponseWriter, r *http.Request) {
 }
 
 func htmlIndex(args []string, w http.ResponseWriter, r *http.Request) {
-	repos, err := bstore.QueryDB[DBRepo](database).List()
+	repos, err := bstore.QueryDB[DBRepo](database).SortDesc("Modified").List()
 	xcheckf(err, "listing repos")
 	err = indexTemplate.Execute(w, map[string]any{
 		"Repos": repos,
@@ -222,16 +222,36 @@ func htmlManifest(args []string, w http.ResponseWriter, r *http.Request) {
 		}
 		xcheckf(err, "fetching repo from database")
 
+		digest := strings.ToLower(args[1])
+
 		qrm := bstore.QueryTx[DBRepoManifest](tx)
-		exists, err := qrm.FilterNonzero(DBRepoManifest{Repo: repo.Name, Digest: args[1]}).Exists()
+		exists, err := qrm.FilterNonzero(DBRepoManifest{Repo: repo.Name, Digest: digest}).Exists()
 		xcheckf(err, "finding manifest for repo in database")
 		if !exists {
 			panic(httpErr{http.StatusNotFound})
 		}
 
-		dbmanifest := DBManifest{Digest: args[1]}
+		dbmanifest := DBManifest{Digest: digest}
 		err = tx.Get(&dbmanifest)
 		xcheckf(err, "fetching manifest from database")
+
+		if tag != "" {
+			exists, err := bstore.QueryTx[DBTag](tx).FilterNonzero(DBTag{Repo: repo.Name, Tag: tag, Digest: digest}).Exists()
+			xcheckf(err, "looking up tag in database")
+			if !exists {
+				// Could be an image manifest that is part of a list manifest.
+				mli, err := bstore.QueryTx[DBManifestListImage](tx).FilterNonzero(DBManifestListImage{ImageDigest: digest}).Get()
+				if err == bstore.ErrAbsent {
+					panic(httpErr{http.StatusBadRequest})
+				}
+				xcheckf(err, "looking up multiplatform manifest in database")
+				exists, err := bstore.QueryTx[DBTag](tx).FilterNonzero(DBTag{Repo: repo.Name, Tag: tag, Digest: mli.ListDigest}).Exists()
+				xcheckf(err, "looking up tag in database")
+				if !exists {
+					panic(httpErr{http.StatusBadRequest})
+				}
+			}
+		}
 
 		dbmanifests := map[string]DBManifest{} // For manifests in lists.
 
@@ -281,7 +301,7 @@ func htmlManifest(args []string, w http.ResponseWriter, r *http.Request) {
 			panic("missing case for kind")
 		}
 
-		manifestDigests = append(manifestDigests, args[1])
+		manifestDigests = append(manifestDigests, digest)
 		q := bstore.QueryTx[DBTag](tx)
 		tags, err := q.FilterEqual("Digest", manifestDigests...).SortDesc("Modified").List()
 		xcheckf(err, "listing tags referencing manifest digest")
