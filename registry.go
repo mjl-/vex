@@ -838,8 +838,11 @@ func (reg registry) blobUploadPost(args []string, w http.ResponseWriter, r *http
 			err := tx.Insert(&blob)
 			xcheckf(err, "inserting blob in database")
 
-			os.MkdirAll(filepath.Join(config.DataDir, "blob"), 0755)
-			err = os.Rename(f.Name(), filepath.Join(config.DataDir, "blob", digest))
+			err = setBlobPermissions(f)
+			xcheckf(err, "setting file permissions")
+			dst := filepath.Join(config.DataDir, "blob", digest)
+			os.MkdirAll(filepath.Dir(dst), 0755)
+			err = os.Rename(f.Name(), dst)
 			xcheckf(err, "moving blob to destination")
 		} else {
 			xcheckf(err, "checking if blob is exists in database")
@@ -996,8 +999,11 @@ func (reg registry) blobUploadPut(args []string, w http.ResponseWriter, r *http.
 				err := tx.Insert(&blob)
 				xcheckf(err, "adding blob digest to database")
 
-				os.MkdirAll(filepath.Join(config.DataDir, "blob"), 0755)
-				err = os.Rename(up.File.Name(), filepath.Join(config.DataDir, "blob", digest))
+				err = setBlobPermissions(up.File)
+				xcheckf(err, "setting file permissions")
+				dst := filepath.Join(config.DataDir, "blob", digest)
+				os.MkdirAll(filepath.Dir(dst), 0755)
+				err = os.Rename(up.File.Name(), dst)
 				xcheckf(err, "moving blob to destination")
 			} else {
 				xcheckf(err, "checking if blob exists in database")
