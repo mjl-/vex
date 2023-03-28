@@ -1,5 +1,6 @@
 - automatically remove unreferenced blobs and manifests at least 24 hours past their modification.
 
+- possibly follow https://github.com/opencontainers/distribution-spec instead of docker.com's docs.
 - consider storing manifests explicitly (copied) for repos, not in global DBManifest that is referenced from DBRepoManifest. saves some indirections. manifests are small, so disk space is not an issue.
 - structured logging with slog
 - figure out how to have a public /v2/ that only requires authentication on push. returning 401 only for write operations, but not read operations, causes at least "docker push" to never do authentication (because /v2/ can be fetched without auth). with token-based authentication?

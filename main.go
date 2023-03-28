@@ -1,3 +1,4 @@
+// Command vex is a modest docker registry for projects hosting their own docker images.
 package main
 
 import (
