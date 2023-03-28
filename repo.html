@@ -34,7 +34,7 @@ p { margin-bottom: 1em; max-width: 50em; }
 			<tbody>
 				{{ range .Tags -}}
 				<tr>
-					<td><a href="manifest/{{ .Digest }}/?tag={{ .Tag }}">{{ .Tag }}</a></td>
+					<td><a href="m/{{ .Digest }}/?tag={{ .Tag }}">{{ .Tag }}</a></td>
 					<td>
 					{{- $tag := .Tag }}
 					{{- range index $.ManifestTags .Digest -}}

@@ -100,7 +100,7 @@ p { margin-bottom: 1em; max-width: 50em; }
 						{{- if .Platform.Features }}cpu features: {{ range .Platform.Features }}{{ . }} {{ end}} {{ end }}
 					</td>
 					<td style="text-align: right" title="{{ $dbmanifest.ImageSize }} bytes">{{ $dbmanifest.ImageSize | formatSize }}</td>
-					<td>{{ $.BaseAddress }}/{{ $.Repo.Name }}{{ if $.Tag }}:{{ $.Tag }}{{ end }}@<a href="../../manifest/{{ .Digest }}/{{ if $.Tag }}?tag={{ $.Tag }}{{ end }}" class="monospace">{{ .Digest }}</a></td>
+					<td>{{ $.BaseAddress }}/{{ $.Repo.Name }}{{ if $.Tag }}:{{ $.Tag }}{{ end }}@<a href="../../m/{{ .Digest }}/{{ if $.Tag }}?tag={{ $.Tag }}{{ end }}" class="monospace">{{ .Digest }}</a></td>
 				</tr>
 				{{- else -}}
 				<tr><td colspan="4">None</td></tr>

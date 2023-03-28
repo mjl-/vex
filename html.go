@@ -67,8 +67,8 @@ type htmlPath struct {
 
 var htmlPaths = []htmlPath{
 	{"htmlIndex", regexp.MustCompile(`^/$`), htmlIndex},
-	{"htmlRepo", regexp.MustCompile(`^/repo/([^/]+)/?$`), htmlRepo},
-	{"htmlManifest", regexp.MustCompile(`^/repo/([^/]+)/manifest/([^/]+)/?$`), htmlManifest},
+	{"htmlRepo", regexp.MustCompile(`^/(?:repo|r)/([^/]+)/?$`), htmlRepo},
+	{"htmlManifest", regexp.MustCompile(`^/(?:repo|r)/([^/]+)/(?:manifest|m)/([^/]+)/?$`), htmlManifest},
 }
 
 func serveHTML(xw http.ResponseWriter, r *http.Request) {
@@ -131,6 +131,11 @@ func htmlIndex(args []string, w http.ResponseWriter, r *http.Request) {
 
 func htmlRepo(args []string, w http.ResponseWriter, r *http.Request) {
 	var params map[string]any
+
+	if strings.HasPrefix(r.URL.Path, "/repo/") {
+		http.Redirect(w, r, "/r/"+r.URL.Path[len("/repo/"):], http.StatusPermanentRedirect)
+		return
+	}
 
 	err := database.Read(func(tx *bstore.Tx) error {
 		repo := DBRepo{Name: args[0]}
@@ -216,6 +221,19 @@ func htmlRepo(args []string, w http.ResponseWriter, r *http.Request) {
 
 func htmlManifest(args []string, w http.ResponseWriter, r *http.Request) {
 	var params map[string]any
+
+	// If path has "repo" and/or "manifest", redirect to version with "r" and "m".
+	t := strings.Split(r.URL.Path[1:], "/")
+	if t[0] == "repo" || t[2] == "manifest" {
+		t[0] = "r"
+		t[2] = "m"
+		url := "/" + strings.Join(t, "/")
+		if r.URL.RawQuery != "" {
+			url += "?" + r.URL.RawQuery
+		}
+		http.Redirect(w, r, url, http.StatusPermanentRedirect)
+		return
+	}
 
 	tag := r.URL.Query().Get("tag")
 

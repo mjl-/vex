@@ -87,8 +87,8 @@ func TestRegistry(t *testing.T) {
 	// No data yet.
 	html := http.HandlerFunc(serveHTML)
 	checkRequest(html, false, "GET", "/", nil, nil, http.StatusOK, nil, "")
-	checkRequest(html, false, "GET", "/repo/badname/", nil, nil, http.StatusNotFound, nil, "")
-	checkRequest(html, false, "GET", "/repo/badname/manifest/sha256:0000000000000000000000000000000000000000000000000000000000000000", nil, nil, http.StatusNotFound, nil, "")
+	checkRequest(html, false, "GET", "/r/badname/", nil, nil, http.StatusNotFound, nil, "")
+	checkRequest(html, false, "GET", "/r/badname/m/sha256:0000000000000000000000000000000000000000000000000000000000000000", nil, nil, http.StatusNotFound, nil, "")
 
 	upper := func(digest string) string {
 		t := strings.SplitN(digest, ":", 2)
@@ -350,15 +350,15 @@ func TestRegistry(t *testing.T) {
 
 	// HTML pages, now with data.
 	checkRequest(html, false, "GET", "/", nil, nil, http.StatusOK, nil, "")
-	checkRequest(html, false, "GET", "/repo/badname/", nil, nil, http.StatusNotFound, nil, "")
-	checkRequest(html, false, "GET", "/repo/testrepo/manifest/sha256:0000000000000000000000000000000000000000000000000000000000000000", nil, nil, http.StatusNotFound, nil, "")
-	checkRequest(html, false, "GET", "/repo/badname/manifest/"+mamdDigest, nil, nil, http.StatusNotFound, nil, "")
-	checkRequest(html, false, "GET", "/repo/badname/manifest/"+list0Digest, nil, nil, http.StatusNotFound, nil, "")
-	checkRequest(html, false, "GET", "/repo/testrepo/", nil, nil, http.StatusOK, nil, "")
-	checkRequest(html, false, "GET", "/repo/testrepo/manifest/"+mamdDigest+"/", nil, nil, http.StatusOK, nil, "")
-	checkRequest(html, false, "GET", "/repo/testrepo/manifest/"+mamdDigest+"/?tag=image", nil, nil, http.StatusOK, nil, "")
-	checkRequest(html, false, "GET", "/repo/testrepo/manifest/"+list0Digest+"/", nil, nil, http.StatusOK, nil, "")
-	checkRequest(html, false, "GET", "/repo/testrepo/manifest/"+list0Digest+"/?tag=list", nil, nil, http.StatusOK, nil, "")
+	checkRequest(html, false, "GET", "/r/badname/", nil, nil, http.StatusNotFound, nil, "")
+	checkRequest(html, false, "GET", "/r/testrepo/m/sha256:0000000000000000000000000000000000000000000000000000000000000000", nil, nil, http.StatusNotFound, nil, "")
+	checkRequest(html, false, "GET", "/r/badname/m/"+mamdDigest, nil, nil, http.StatusNotFound, nil, "")
+	checkRequest(html, false, "GET", "/r/badname/m/"+list0Digest, nil, nil, http.StatusNotFound, nil, "")
+	checkRequest(html, false, "GET", "/r/testrepo/", nil, nil, http.StatusOK, nil, "")
+	checkRequest(html, false, "GET", "/r/testrepo/m/"+mamdDigest+"/", nil, nil, http.StatusOK, nil, "")
+	checkRequest(html, false, "GET", "/r/testrepo/m/"+mamdDigest+"/?tag=image", nil, nil, http.StatusOK, nil, "")
+	checkRequest(html, false, "GET", "/r/testrepo/m/"+list0Digest+"/", nil, nil, http.StatusOK, nil, "")
+	checkRequest(html, false, "GET", "/r/testrepo/m/"+list0Digest+"/?tag=list", nil, nil, http.StatusOK, nil, "")
 
 	// Public, unauthenticated endpoint.
 	public := registry{auth: false}
