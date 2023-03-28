@@ -67,8 +67,8 @@ type htmlPath struct {
 
 var htmlPaths = []htmlPath{
 	{"htmlIndex", regexp.MustCompile(`^/$`), htmlIndex},
-	{"htmlRepo", regexp.MustCompile(`^/repo/([^/]+)/$`), htmlRepo},
-	{"htmlManifest", regexp.MustCompile(`^/repo/([^/]+)/manifest/([^/]+)/$`), htmlManifest},
+	{"htmlRepo", regexp.MustCompile(`^/repo/([^/]+)/?$`), htmlRepo},
+	{"htmlManifest", regexp.MustCompile(`^/repo/([^/]+)/manifest/([^/]+)/?$`), htmlManifest},
 }
 
 func serveHTML(xw http.ResponseWriter, r *http.Request) {
@@ -139,6 +139,11 @@ func htmlRepo(args []string, w http.ResponseWriter, r *http.Request) {
 			panic(httpErr{http.StatusNotFound})
 		}
 		xcheckf(err, "fetching repo from database")
+
+		if !strings.HasSuffix(r.URL.Path, "/") {
+			http.Redirect(w, r, r.URL.Path+"/", http.StatusPermanentRedirect)
+			return nil
+		}
 
 		tags, err := bstore.QueryTx[DBTag](tx).FilterNonzero(DBTag{Repo: repo.Name}).SortDesc("Modified").List()
 		xcheckf(err, "listing tags")
@@ -251,6 +256,15 @@ func htmlManifest(args []string, w http.ResponseWriter, r *http.Request) {
 					panic(httpErr{http.StatusBadRequest})
 				}
 			}
+		}
+
+		if !strings.HasSuffix(r.URL.Path, "/") {
+			url := r.URL.Path + "/"
+			if r.URL.RawQuery != "" {
+				url += "?" + r.URL.RawQuery
+			}
+			http.Redirect(w, r, url, http.StatusPermanentRedirect)
+			return nil
 		}
 
 		dbmanifests := map[string]DBManifest{} // For manifests in lists.
