@@ -281,7 +281,7 @@ func serve(args []string) {
 	adminmux := http.NewServeMux()
 	adminmux.Handle("/metrics", promhttp.Handler())
 
-	log.Printf("listening, public %s, authenticated/writable %s, admin %s", publicAddr, authAddr, adminAddr)
+	log.Printf("vex %s, serving public %s, authenticated/writable %s, admin %s", version, publicAddr, authAddr, adminAddr)
 	go func() {
 		log.Fatalln(http.ListenAndServe(publicAddr, publicmux))
 	}()
