@@ -53,6 +53,27 @@ var funcs = htmltemplate.FuncMap{
 		}
 		return fmt.Sprintf("%d years ago", int64(math.Round(float64(d)/float64(year))))
 	},
+	"shortPlatforms": func(l []ManifestPlatform) string {
+		m := map[string][]string{}
+		for _, e := range l {
+			m[e.Platform.OS] = append(m[e.Platform.OS], e.Platform.Architecture)
+		}
+		var keys []string
+		for k := range m {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		var s []string
+		for _, k := range keys {
+			archs := m[k]
+			if len(archs) == 1 {
+				s = append(s, k+"/"+archs[0])
+			} else {
+				s = append(s, fmt.Sprintf("%s/{%s}", k, strings.Join(archs, ",")))
+			}
+		}
+		return strings.Join(s, " ")
+	},
 }
 
 var indexTemplate = htmltemplate.Must(htmltemplate.New("index.html").Funcs(funcs).Parse(indexHTML))

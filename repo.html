@@ -48,7 +48,7 @@ p { margin-bottom: 1em; max-width: 50em; }
 					<td style="text-align: right" title="{{ $dbmanifest.ImageSize }} bytes">{{ $dbmanifest.ImageSize | formatSize }}</td>
 					{{ else if eq $kind $.ManifestKindListV22 -}}
 					<td>
-						{{ range $parsed.Manifests -}}{{ .Platform.OS }}/{{ .Platform.Architecture }} {{ end }}
+						{{ $parsed.Manifests | shortPlatforms }}
 					</td>
 					{{- end }}
 					<td>
