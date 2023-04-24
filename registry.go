@@ -263,7 +263,9 @@ func (reg registry) ServeHTTP(xw http.ResponseWriter, r *http.Request) {
 			xunauthorized()
 		}
 		t := bytes.SplitN(s, []byte{':'}, 2)
-		if len(t) != 2 {
+		// Require non-empty username for database.Get to succeed. Podman appears to send
+		// empty username if no credentials are configured.
+		if len(t) != 2 || len(t[0]) == 0 {
 			xunauthorized()
 		}
 		u := DBUser{Username: string(t[0])}
