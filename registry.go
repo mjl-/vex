@@ -1175,7 +1175,7 @@ func xrepomanifest(ctx context.Context, repo, digest string) (DBRepoManifest, DB
 	}
 	xcheckf(err, "looking up manifest for repository")
 	m := DBManifest{Digest: digest}
-	err = database.Get(ctx,&m)
+	err = database.Get(ctx, &m)
 	xcheckf(err, "getting manifest from database")
 	return rm, m
 }
