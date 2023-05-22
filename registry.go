@@ -8,6 +8,7 @@ https://docs.docker.com/registry/compatibility/
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -269,7 +270,7 @@ func (reg registry) ServeHTTP(xw http.ResponseWriter, r *http.Request) {
 			xunauthorized()
 		}
 		u := DBUser{Username: string(t[0])}
-		err = database.Get(&u)
+		err = database.Get(r.Context(), &u)
 		if err == bstore.ErrAbsent {
 			xunauthorized()
 		}
@@ -337,7 +338,7 @@ func (reg registry) index(args []string, w http.ResponseWriter, r *http.Request)
 //
 // List repositories.
 func (reg registry) catalog(args []string, w http.ResponseWriter, r *http.Request) {
-	repos, err := bstore.QueryDB[DBRepo](database).List()
+	repos, err := bstore.QueryDB[DBRepo](r.Context(), database).List()
 	xcheckf(err, "listing repositories")
 	resp := Catalog{Repositories: []string{}}
 	for _, r := range repos {
@@ -348,11 +349,11 @@ func (reg registry) catalog(args []string, w http.ResponseWriter, r *http.Reques
 
 // Return list of tags for the repository.
 func (reg registry) tags(args []string, w http.ResponseWriter, r *http.Request) {
-	repo := xrepo(args[0])
+	repo := xrepo(r.Context(), args[0])
 
 	// todo: pagination, when we need it.
 	resp := TagList{Name: repo.Name, Tags: []string{}}
-	q := bstore.QueryDB[DBTag](database)
+	q := bstore.QueryDB[DBTag](r.Context(), database)
 	q.FilterNonzero(DBTag{Repo: repo.Name})
 	q.SortDesc("Modified")
 	tags, err := q.List()
@@ -364,22 +365,22 @@ func (reg registry) tags(args []string, w http.ResponseWriter, r *http.Request) 
 }
 
 func (reg registry) manifestFetch(args []string, w http.ResponseWriter, r *http.Request) {
-	repo := xrepo(args[0])
+	repo := xrepo(r.Context(), args[0])
 	reference := args[1]
 	var m DBManifest
 	if istag(reference) {
-		t, err := bstore.QueryDB[DBTag](database).FilterNonzero(DBTag{Repo: repo.Name, Tag: reference}).Get()
+		t, err := bstore.QueryDB[DBTag](r.Context(), database).FilterNonzero(DBTag{Repo: repo.Name, Tag: reference}).Get()
 		if err == bstore.ErrAbsent {
 			xnotFound(ErrorManifestUnknown)
 		}
 		xcheckf(err, "looking up tag")
 
 		m = DBManifest{Digest: t.Digest}
-		err = database.Get(&m)
+		err = database.Get(r.Context(), &m)
 		xcheckf(err, "getting manifest from database")
 	} else {
 		reference = xdigestcanon(reference)
-		_, m = xrepomanifest(repo.Name, reference)
+		_, m = xrepomanifest(r.Context(), repo.Name, reference)
 	}
 
 	// todo: should we check the accept header?
@@ -407,7 +408,7 @@ func (reg registry) manifestFetch(args []string, w http.ResponseWriter, r *http.
 func (reg registry) manifestDelete(args []string, w http.ResponseWriter, r *http.Request) {
 	reg.xauth()
 
-	repo := xrepo(args[0])
+	repo := xrepo(r.Context(), args[0])
 	reference := args[1]
 	if !istag(reference) {
 		reference = xdigestcanon(reference)
@@ -415,7 +416,7 @@ func (reg registry) manifestDelete(args []string, w http.ResponseWriter, r *http
 
 	var removePaths []string
 
-	err := database.Write(func(tx *bstore.Tx) error {
+	err := database.Write(r.Context(), func(tx *bstore.Tx) error {
 		tag := istag(reference)
 		if tag {
 			// Remove the tag.
@@ -543,7 +544,7 @@ func xremoveRepoLastListImages(tx *bstore.Tx, repo DBRepo, manifestDigest string
 func (reg registry) manifestPut(args []string, w http.ResponseWriter, r *http.Request) {
 	reg.xauth()
 
-	repo := xensurerepo(args[0])
+	repo := xensurerepo(r.Context(), args[0])
 	reference := args[1]
 	if !istag(reference) {
 		reference = xdigestcanon(reference)
@@ -584,7 +585,7 @@ func (reg registry) manifestPut(args []string, w http.ResponseWriter, r *http.Re
 
 	var removePaths []string
 
-	err = database.Write(func(tx *bstore.Tx) error {
+	err = database.Write(r.Context(), func(tx *bstore.Tx) error {
 		var imageSize int64
 		switch kind {
 		case ManifestKindV22:
@@ -773,14 +774,14 @@ func (reg registry) manifestPut(args []string, w http.ResponseWriter, r *http.Re
 func (reg registry) blobUploadPost(args []string, w http.ResponseWriter, r *http.Request) {
 	reg.xauth()
 
-	repo := xensurerepo(args[0])
+	repo := xensurerepo(r.Context(), args[0])
 
 	mount := r.URL.Query().Get("mount")
 	if mount != "" {
 		// Request to use a blob from another repository. We don't care about the repo, all
 		// blobs are public and shared.
 		mount = xdigestcanon(mount)
-		err := database.Get(&DBBlob{Digest: mount})
+		err := database.Get(r.Context(), &DBBlob{Digest: mount})
 		if err == nil {
 			h := w.Header()
 			h.Set("Location", fmt.Sprintf("/v2/%s/blobs/%s", repo.Name, mount))
@@ -807,7 +808,7 @@ func (reg registry) blobUploadPost(args []string, w http.ResponseWriter, r *http
 	digest = xdigestcanon(digest)
 
 	// Check digest does not yet exist.
-	err := database.Get(&DBBlob{Digest: digest})
+	err := database.Get(r.Context(), &DBBlob{Digest: digest})
 	if err != bstore.ErrAbsent {
 		xcheckf(err, "checking if digest is already present")
 	}
@@ -832,7 +833,7 @@ func (reg registry) blobUploadPost(args []string, w http.ResponseWriter, r *http
 		xerrorf(http.StatusBadRequest, ErrorDigestInvalid, "digest mismatch")
 	}
 
-	err = database.Write(func(tx *bstore.Tx) error {
+	err = database.Write(context.Background(), func(tx *bstore.Tx) error {
 		// Check existence again.
 		err := tx.Get(&DBBlob{Digest: digest})
 		if err == bstore.ErrAbsent {
@@ -893,7 +894,7 @@ func withUpload(uuid string, fn func(*upload)) {
 func (reg registry) blobUploadGet(args []string, w http.ResponseWriter, r *http.Request) {
 	reg.xauth()
 
-	xrepo(args[0])
+	xrepo(r.Context(), args[0])
 	withUpload(args[1], func(up *upload) {
 		up.SendActivity()
 		h := w.Header()
@@ -909,7 +910,7 @@ func (reg registry) blobUploadGet(args []string, w http.ResponseWriter, r *http.
 func (reg registry) blobUploadPatch(args []string, w http.ResponseWriter, r *http.Request) {
 	reg.xauth()
 
-	repo := xrepo(args[0])
+	repo := xrepo(r.Context(), args[0])
 
 	withUpload(args[1], func(up *upload) {
 		// We handle and enforce the unnecessarily complicated content-range and
@@ -967,7 +968,7 @@ func (reg registry) blobUploadPatch(args []string, w http.ResponseWriter, r *htt
 func (reg registry) blobUploadPut(args []string, w http.ResponseWriter, r *http.Request) {
 	reg.xauth()
 
-	repo := xrepo(args[0])
+	repo := xrepo(r.Context(), args[0])
 
 	withUpload(args[1], func(up *upload) {
 		// Unlike PATCH, content-length and content-range are not specified for the chunk in PUT.
@@ -987,7 +988,7 @@ func (reg registry) blobUploadPut(args []string, w http.ResponseWriter, r *http.
 			xerrorf(http.StatusBadRequest, ErrorDigestInvalid, "uploaded blob has digest %s, not %s", digest, qdigest)
 		}
 
-		err = database.Write(func(tx *bstore.Tx) error {
+		err = database.Write(context.Background(), func(tx *bstore.Tx) error {
 			defer func() {
 				if up.File != nil {
 					up.Cancel()
@@ -1043,7 +1044,7 @@ func (reg registry) blobUploadPut(args []string, w http.ResponseWriter, r *http.
 func (reg registry) blobUploadDelete(args []string, w http.ResponseWriter, r *http.Request) {
 	reg.xauth()
 
-	xrepo(args[0])
+	xrepo(r.Context(), args[0])
 	withUpload(args[1], func(up *upload) {
 		up.Cancel()
 	})
@@ -1054,10 +1055,10 @@ func (reg registry) blobUploadDelete(args []string, w http.ResponseWriter, r *ht
 
 // Fetch a blob by digest.
 func (reg registry) blobFetch(args []string, w http.ResponseWriter, r *http.Request) {
-	xrepo(args[0])
+	xrepo(r.Context(), args[0])
 
 	digest := xdigestcanon(args[1])
-	b, err := bstore.QueryDB[DBBlob](database).FilterNonzero(DBBlob{Digest: digest}).Get()
+	b, err := bstore.QueryDB[DBBlob](r.Context(), database).FilterNonzero(DBBlob{Digest: digest}).Get()
 	if err == bstore.ErrAbsent {
 		xnotFound(ErrorBlobUnknown)
 	}
@@ -1085,11 +1086,11 @@ func (reg registry) blobFetch(args []string, w http.ResponseWriter, r *http.Requ
 func (reg registry) blobDelete(args []string, w http.ResponseWriter, r *http.Request) {
 	reg.xauth()
 
-	xrepo(args[0])
+	xrepo(r.Context(), args[0])
 	digest := xdigestcanon(args[1])
 
 	var removePath string
-	err := database.Write(func(tx *bstore.Tx) error {
+	err := database.Write(r.Context(), func(tx *bstore.Tx) error {
 		l := DBBlob{Digest: digest}
 		err := tx.Get(&l)
 		if err == bstore.ErrAbsent {
@@ -1135,9 +1136,9 @@ func xerrorf(statuscode int, regErr RegistryError, format string, args ...any) {
 	panic(err)
 }
 
-func xrepo(name string) DBRepo {
+func xrepo(ctx context.Context, name string) DBRepo {
 	repo := DBRepo{Name: name}
-	err := database.Get(&repo)
+	err := database.Get(ctx, &repo)
 	if err == bstore.ErrAbsent {
 		xnotFound(ErrorNameUnknown)
 	}
@@ -1147,8 +1148,8 @@ func xrepo(name string) DBRepo {
 
 var repoNameRegexp = regexp.MustCompile(`^[a-z0-9]+(?:[\._-][a-z0-9]+)*$`)
 
-func xensurerepo(name string) (repo DBRepo) {
-	err := database.Write(func(tx *bstore.Tx) error {
+func xensurerepo(ctx context.Context, name string) (repo DBRepo) {
+	err := database.Write(ctx, func(tx *bstore.Tx) error {
 		repo = DBRepo{Name: name}
 		err := tx.Get(&repo)
 		if err == bstore.ErrAbsent {
@@ -1166,15 +1167,15 @@ func xensurerepo(name string) (repo DBRepo) {
 	return
 }
 
-func xrepomanifest(repo, digest string) (DBRepoManifest, DBManifest) {
-	q := bstore.QueryDB[DBRepoManifest](database)
+func xrepomanifest(ctx context.Context, repo, digest string) (DBRepoManifest, DBManifest) {
+	q := bstore.QueryDB[DBRepoManifest](ctx, database)
 	rm, err := q.FilterNonzero(DBRepoManifest{Repo: repo, Digest: digest}).Get()
 	if err == bstore.ErrAbsent {
 		xnotFound(ErrorManifestUnknown)
 	}
 	xcheckf(err, "looking up manifest for repository")
 	m := DBManifest{Digest: digest}
-	err = database.Get(&m)
+	err = database.Get(ctx,&m)
 	xcheckf(err, "getting manifest from database")
 	return rm, m
 }

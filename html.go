@@ -140,7 +140,7 @@ func serveHTML(xw http.ResponseWriter, r *http.Request) {
 }
 
 func htmlIndex(args []string, w http.ResponseWriter, r *http.Request) {
-	repos, err := bstore.QueryDB[DBRepo](database).SortDesc("Modified").List()
+	repos, err := bstore.QueryDB[DBRepo](r.Context(), database).SortDesc("Modified").List()
 	xcheckf(err, "listing repos")
 	err = indexTemplate.Execute(w, map[string]any{
 		"Repos": repos,
@@ -158,7 +158,7 @@ func htmlRepo(args []string, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := database.Read(func(tx *bstore.Tx) error {
+	err := database.Read(r.Context(), func(tx *bstore.Tx) error {
 		repo := DBRepo{Name: args[0]}
 		err := tx.Get(&repo)
 		if err == bstore.ErrAbsent {
@@ -258,7 +258,7 @@ func htmlManifest(args []string, w http.ResponseWriter, r *http.Request) {
 
 	tag := r.URL.Query().Get("tag")
 
-	err := database.Read(func(tx *bstore.Tx) error {
+	err := database.Read(r.Context(), func(tx *bstore.Tx) error {
 		repo := DBRepo{Name: args[0]}
 		err := tx.Get(&repo)
 		if err == bstore.ErrAbsent {

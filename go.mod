@@ -3,7 +3,7 @@ module github.com/mjl-/vex
 go 1.19
 
 require (
-	github.com/mjl-/bstore v0.0.0-20230211204415-a9899ef6e782
+	github.com/mjl-/bstore v0.0.1
 	github.com/mjl-/sconf v0.0.4
 	github.com/prometheus/client_golang v1.14.0
 )

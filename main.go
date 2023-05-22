@@ -3,6 +3,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	cryptorand "crypto/rand"
 	"crypto/sha256"
@@ -209,7 +210,7 @@ func main() {
 			}
 		case "delete":
 			db := xdb()
-			if err := db.Delete(&DBUser{Username: args[1]}); err != nil {
+			if err := db.Delete(context.Background(), &DBUser{Username: args[1]}); err != nil {
 				log.Fatalf("removing user from database: %v", err)
 			}
 		default:
@@ -227,7 +228,7 @@ func main() {
 
 func xdb() *bstore.DB {
 	os.MkdirAll("data", 0755)
-	db, err := bstore.Open(filepath.Join(config.DataDir, "vex.db"), &bstore.Options{Perm: 0660}, DBRepo{}, DBBlob{}, DBManifest{}, DBManifestBlob{}, DBManifestListImage{}, DBRepoManifest{}, DBTag{}, DBUser{})
+	db, err := bstore.Open(context.Background(), filepath.Join(config.DataDir, "vex.db"), &bstore.Options{Perm: 0660}, DBRepo{}, DBBlob{}, DBManifest{}, DBManifestBlob{}, DBManifestListImage{}, DBRepoManifest{}, DBTag{}, DBUser{})
 	if err != nil {
 		log.Fatalf("open database: %v", err)
 	}
@@ -242,7 +243,7 @@ func adduser(db *bstore.DB, username string, password []byte) error {
 	hm := hmac.New(sha256.New, salt)
 	hm.Write([]byte(password))
 	h := hm.Sum(nil)
-	if err := db.Insert(&DBUser{username, salt, h}); err != nil {
+	if err := db.Insert(context.Background(), &DBUser{username, salt, h}); err != nil {
 		return fmt.Errorf("inserting user into database: %v", err)
 	}
 	return nil
