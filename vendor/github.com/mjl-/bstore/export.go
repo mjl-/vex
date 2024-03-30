@@ -158,27 +158,27 @@ func (tx *Tx) Record(typeName, key string, fields *[]string) (map[string]any, er
 		return nil, err
 	}
 	pkv := reflect.ValueOf(kv)
-	kind, err := typeKind(pkv.Type())
+	k, err := typeKind(pkv.Type())
 	if err != nil {
 		return nil, err
 	}
-	if kind != tv.Fields[0].Type.Kind {
+	if k != tv.Fields[0].Type.Kind {
 		// Convert from various int types above to required type. The ParseInt/ParseUint
 		// calls already validated that the values fit.
 		pkt := reflect.TypeOf(tv.Fields[0].Type.zeroKey())
 		pkv = pkv.Convert(pkt)
 	}
-	k, err := packPK(pkv)
+	pk, err := packPK(pkv)
 	if err != nil {
 		return nil, err
 	}
 
 	tx.stats.Records.Get++
-	bv := rb.Get(k)
+	bv := rb.Get(pk)
 	if bv == nil {
 		return nil, ErrAbsent
 	}
-	record, err := parseMap(versions, k, bv)
+	record, err := parseMap(versions, pk, bv)
 	if err != nil {
 		return nil, err
 	}
@@ -329,17 +329,23 @@ func (ft fieldType) parseValue(p *parser) any {
 			if fm.Nonzero(i) {
 				l = append(l, ft.ListElem.parseValue(p))
 			} else {
-				// Always add non-zero elements, or we would
-				// change the number of elements in a list.
+				// Always add zero elements, or we would change the number of elements in a list.
 				l = append(l, ft.ListElem.zeroExportValue())
 			}
 		}
 		return l
 	case kindArray:
 		n := ft.ArrayLength
-		var l []any
+		l := make([]any, n)
+		fm := p.Fieldmap(n)
 		for i := 0; i < n; i++ {
-			l = append(l, ft.ListElem.parseValue(p))
+			if fm.Nonzero(i) {
+				l[i] = ft.ListElem.parseValue(p)
+			} else {
+				// Always add zero elements, or we would change the number of elements in the
+				// array.
+				l[i] = ft.ListElem.zeroExportValue()
+			}
 		}
 		return l
 	case kindMap:
