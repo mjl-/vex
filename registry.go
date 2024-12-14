@@ -571,16 +571,16 @@ func (reg registry) manifestPut(args []string, w http.ResponseWriter, r *http.Re
 		kind = ManifestKindV22
 		err := json.Unmarshal(buf, &m)
 		if err != nil {
-			xerrorf(http.StatusBadRequest, ErrorManifestInvalid, fmt.Sprintf("parsing image manifest: %v", err))
+			xerrorf(http.StatusBadRequest, ErrorManifestInvalid, "parsing image manifest: %v", err)
 		}
 	case "application/vnd.docker.distribution.manifest.list.v2+json":
 		kind = ManifestKindListV22
 		err := json.Unmarshal(buf, &ml)
 		if err != nil {
-			xerrorf(http.StatusBadRequest, ErrorManifestInvalid, fmt.Sprintf("parsing multiplatform manifest: %v", err))
+			xerrorf(http.StatusBadRequest, ErrorManifestInvalid, "parsing multiplatform manifest: %v", err)
 		}
 	default:
-		xerrorf(http.StatusBadRequest, ErrorManifestInvalid, fmt.Sprintf("unrecognized manifest content-type %q", ct))
+		xerrorf(http.StatusBadRequest, ErrorManifestInvalid, "unrecognized manifest content-type %q", ct)
 	}
 
 	var removePaths []string
@@ -594,7 +594,7 @@ func (reg registry) manifestPut(args []string, w http.ResponseWriter, r *http.Re
 				l := DBBlob{Digest: digest}
 				err := tx.Get(&l)
 				if err == bstore.ErrAbsent {
-					xerrorf(http.StatusBadRequest, ErrorBlobUnknown, fmt.Sprintf("unknown config/layer blob digest %s", digest))
+					xerrorf(http.StatusBadRequest, ErrorBlobUnknown, "unknown config/layer blob digest %s", digest)
 				}
 				xcheckf(err, "looking up config/layer blob digest %s", digest)
 				return l
@@ -645,7 +645,7 @@ func (reg registry) manifestPut(args []string, w http.ResponseWriter, r *http.Re
 				m := DBManifest{Digest: digest}
 				err := tx.Get(&m)
 				if err == bstore.ErrAbsent {
-					xerrorf(http.StatusBadRequest, ErrorManifestInvalid, fmt.Sprintf("unknown manifest digest %s", digest))
+					xerrorf(http.StatusBadRequest, ErrorManifestInvalid, "unknown manifest digest %s", digest)
 				}
 				xcheckf(err, "looking up manifest digest %s", digest)
 				return m
