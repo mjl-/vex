@@ -1,8 +1,6 @@
 module github.com/mjl-/vex
 
-go 1.22
-
-toolchain go1.23.1
+go 1.23.0
 
 require (
 	github.com/mjl-/bstore v0.0.8
@@ -20,6 +18,6 @@ require (
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	go.etcd.io/bbolt v1.3.11 // indirect
-	golang.org/x/sys v0.6.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 )
