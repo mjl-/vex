@@ -5,7 +5,7 @@ go 1.22
 toolchain go1.23.1
 
 require (
-	github.com/mjl-/bstore v0.0.6
+	github.com/mjl-/bstore v0.0.8
 	github.com/mjl-/sconf v0.0.6
 	github.com/prometheus/client_golang v1.14.0
 )
